@@ -44,16 +44,13 @@ https://workflowy.com/s/assessment/qJn45fBdVZn4atl3
 ![03 hexagonal](https://user-images.githubusercontent.com/73917331/106880675-ffe86700-671f-11eb-843f-173fbeca8ae8.png)
 
 # 구현
-분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다 (각자의 포트넘버는 8081 ~ 8084, 8088 이다)
+분석/설계 단계에서 도출된 헥사고날 아키텍처에 따라, 각 BC별로 대변되는 마이크로 서비스들을 스프링부트로 구현하였다. 구현한 각 서비스를 로컬에서 실행하는 방법은 아래와 같다.
 ```
 cd recipe
 mvn spring-boot:run  
 
-cd order
+cd myrecipe
 mvn spring-boot:run
-
-cd delivery
-mvn spring-boot:run 
 
 cd mypage
 mvn spring-boot:run  
@@ -68,57 +65,45 @@ msaez.io 를 통해 구현한 Aggregate 단위로 Entity 를 선언 후, 구현�
 Entity Pattern 과 Repository Pattern 을 적용하기 위해 Spring Data REST 의 RestRepository 를 적용하였다.
 
 ```java
-package searchrecipe;
+package recipe;
 
 import javax.persistence.*;
 import org.springframework.beans.BeanUtils;
 import java.util.List;
 
 @Entity
-@Table(name="Order_table")
-public class Order {
+@Table(name="Myrecipe_table")
+public class Myrecipe {
 
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
-    private String materialNm;
-    private Integer qty;
-    private String status;
+    private String recipe;
+    private Long point;
 
     @PostPersist
     public void onPostPersist(){
-        Ordered ordered = new Ordered();
-        BeanUtils.copyProperties(this, ordered);
-        ordered.publishAfterCommit();
-    }
-
-    @PrePersist
-    public void onPrePersist(){
-        try {
-            Thread.currentThread().sleep((long) (800 + Math.random() * 220));
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
+        Registered registered = new Registered();
+        BeanUtils.copyProperties(this, registered);
+        registered.publishAfterCommit();
     }
 
     @PreRemove
     public void onPreRemove(){
-        OrderCanceled orderCanceled = new OrderCanceled();
-        BeanUtils.copyProperties(this, orderCanceled);
-        orderCanceled.publishAfterCommit();
+        Deleted deleted = new Deleted();
+        BeanUtils.copyProperties(this, deleted);
+        deleted.publishAfterCommit();
 
         //Following code causes dependency to external APIs
         // it is NOT A GOOD PRACTICE. instead, Event-Policy mapping is recommended.
 
-        searchrecipe.external.Cancellation cancellation = new searchrecipe.external.Cancellation();
+        recipe.external.Recipe recipe = new recipe.external.Recipe();
         // mappings goes here
-        cancellation.setOrderId(this.getId());
-        cancellation.setStatus("Delivery Cancelled");
-        OrderApplication.applicationContext.getBean(searchrecipe.external.CancellationService.class)
-            .cancel(cancellation);
-
+        recipe.setMyrecipeId(this.getId());
+        recipe.setPoint(this.point - 1);
+        MyrecipeApplication.applicationContext.getBean(recipe.external.RecipeService.class)
+            .update(recipe);
     }
-
 
     public Long getId() {
         return id;
@@ -127,38 +112,30 @@ public class Order {
     public void setId(Long id) {
         this.id = id;
     }
-    public String getMaterialNm() {
-        return materialNm;
+    public String getRecipe() {
+        return recipe;
     }
 
-    public void setMaterialNm(String materialNm) {
-        this.materialNm = materialNm;
+    public void setRecipe(String recipe) {
+        this.recipe = recipe;
     }
-    public Integer getQty() {
-        return qty;
-    }
-
-    public void setQty(Integer qty) {
-        this.qty = qty;
-    }
-    public String getStatus() {
-        return status;
+    public Long getPoint() {
+        return point;
     }
 
-    public void setStatus(String status) {
-        this.status = status;
+    public void setPoint(Long point) {
+        this.point = point;
     }
-
 }
 
 ```
 
 - 적용 후 REST API의 테스트를 통하여 정상적으로 동작하는 것을 확인할 수 있었다.  
-  - 주문 수행 (MaterialOrdered)
-  ![image](https://user-images.githubusercontent.com/12531980/106535000-9c501500-6538-11eb-89be-f5c1078ad4c3.png)
+  - 레시피 등록
+  ![1 myrecipes_add](https://user-images.githubusercontent.com/73917331/106910660-c9711300-6744-11eb-9680-d8e95ffeef10.PNG)
 
-  - 주문 목록 조회  
-  ![image](https://user-images.githubusercontent.com/12531980/106535116-d6b9b200-6538-11eb-8498-46b2d9398b79.png)
+  - 레시피 목록 조회  
+  ![2 myrecipes_retr](https://user-images.githubusercontent.com/73917331/106910720-da218900-6744-11eb-8440-94bc34bf02fa.PNG)
 
 ## Gateway 적용
 API Gateway를 통하여 마이크로 서비스들의 진입점을 통일하였다.
@@ -167,26 +144,21 @@ server:
   port: 8088
 
 ---
-
 spring:
   profiles: default
   cloud:
     gateway:
       routes:
-        - id: recipe
+        - id: myrecipe
           uri: http://localhost:8081
           predicates:
-            - Path=/recipes/** 
-        - id: order
+            - Path=/myrecipes/** 
+        - id: recipe
           uri: http://localhost:8082
           predicates:
-            - Path=/orders/** 
-        - id: delivery
-          uri: http://localhost:8083
-          predicates:
-            - Path=/deliveries/**,/cancellations/**
+            - Path=/recipes/** 
         - id: mypage
-          uri: http://localhost:8084
+          uri: http://localhost:8083
           predicates:
             - Path= /mypages/**
       globalcors:
@@ -200,7 +172,6 @@ spring:
               - "*"
             allowCredentials: true
 
-
 ---
 
 spring:
@@ -208,18 +179,14 @@ spring:
   cloud:
     gateway:
       routes:
+        - id: myrecipe
+          uri: http://myrecipe:8080
+          predicates:
+            - Path=/myrecipes/** 
         - id: recipe
           uri: http://recipe:8080
           predicates:
             - Path=/recipes/** 
-        - id: order
-          uri: http://order:8080
-          predicates:
-            - Path=/orders/** 
-        - id: delivery
-          uri: http://delivery:8080
-          predicates:
-            - Path=/deliveries/**,/cancellations/**
         - id: mypage
           uri: http://mypage:8080
           predicates:
@@ -237,26 +204,25 @@ spring:
 
 server:
   port: 8080
-
 ```
 
 
 ## 폴리그랏 퍼시스턴스
-- recipe의 경우, 다른 마이크로 서비스들과 달리 조회 기능도 제공해야 하기에, HSQL을 사용하여 구현하였다. 이를 통해, 마이크로 서비스 간 서로 다른 종류의 데이터베이스를 사용해도 문제 없이 동작하여 폴리그랏 퍼시스턴스를 충족시켰다.
+- myrecipe의 경우, 다른 마이크로 서비스들과 달리 조회 기능도 제공해야 하기에, HSQL을 사용하여 구현하였다. 이를 통해, 마이크로 서비스 간 서로 다른 종류의 데이터베이스를 사용해도 문제 없이 동작하여 폴리그랏 퍼시스턴스를 충족시켰다.
 
-  **recipe 서비스의 pom.xml**  
+  **myrecipe 서비스의 pom.xml**  
 
-  ![image](https://user-images.githubusercontent.com/12531980/106535831-70359380-653a-11eb-8e81-1654226aa9e9.png)
+  ![3 myrecipe_pom](https://user-images.githubusercontent.com/73917331/106911050-28368c80-6745-11eb-833b-8dba34d0b4f6.PNG)
 
 
 ## 유비쿼터스 랭귀지
-- 조직명, 서비스 명에서 사용되고, 업무현장에서도 쓰이며, 모든 이해관계자들이 직관적으로 의미를 이해할 수 있도록 영어 단어를 사용함 (recipe, order, delivery 등)
+- 조직명, 서비스 명에서 사용되고, 업무현장에서도 쓰이며, 모든 이해관계자들이 직관적으로 의미를 이해할 수 있도록 영어 단어를 사용함 (myrecipe, recipe 등)
 
 ## 동기식 호출(Req/Res 방식)과 Fallback 처리
-- 분석단계에서의 조건 중 하나로 주문 취소(order)와 배송 취소(delivery) 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다.
-- 배송 취소 서비스를 호출하기 위하여 FeignClient를 이용하여 Service 대행 인터페이스(Proxy)를 구현
+- 분석단계에서의 조건 중 하나로 회원 레시피 등록 취소와 추천 포인트 차감 간의 호출은 동기식 일관성을 유지하는 트랜잭션으로 처리하기로 하였다. 호출 프로토콜은 이미 앞서 Rest Repository 에 의해 노출되어있는 REST 서비스를 FeignClient 를 이용하여 호출하도록 한다.
+- 레시피 등록 취소 서비스를 호출하기 위하여 FeignClient를 이용하여 Service 대행 인터페이스(Proxy)를 구현
 ```java
-package searchrecipe.external;
+package recipe.external;
 
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -265,74 +231,73 @@ import org.springframework.web.bind.annotation.RequestMethod;
 
 import java.util.Date;
 
-@FeignClient(name="delivery", url="${api.delivery.url}")
-public interface CancellationService {
+@FeignClient(name="recipe", url="${api.recipe.url}")
+public interface RecipeService {
 
-    @RequestMapping(method= RequestMethod.POST, path="/cancellations")
-    public void cancel(@RequestBody Cancellation cancellation);
+    @RequestMapping(method= RequestMethod.GET, path="/recipes")
+    public void update(@RequestBody Recipe recipe);
 
 }
 ```
 
-- 주문이 취소된 직후(@PreRemove) 배송이 취소되도록 처리
+- 레시피 등록이 취소된 직후(@PreRemove) 포인트 차감이 되도록 처리
 ```java
 //...
-public class Order {
+public class Myrecipe {
     //...
 
     @PreRemove
     public void onPreRemove(){
-        OrderCanceled orderCanceled = new OrderCanceled();
-        BeanUtils.copyProperties(this, orderCanceled);
-        orderCanceled.publishAfterCommit();
+        Deleted deleted = new Deleted();
+        BeanUtils.copyProperties(this, deleted);
+        deleted.publishAfterCommit();
 
         //Following code causes dependency to external APIs
         // it is NOT A GOOD PRACTICE. instead, Event-Policy mapping is recommended.
 
-        searchrecipe.external.Cancellation cancellation = new searchrecipe.external.Cancellation();
+        recipe.external.Recipe recipe = new recipe.external.Recipe();
         // mappings goes here
-        cancellation.setOrderId(this.getId());
-        cancellation.setStatus("Delivery Cancelled");
-        OrderApplication.applicationContext.getBean(searchrecipe.external.CancellationService.class)
-            .cancel(cancellation);
+        recipe.setMyrecipeId(this.getId());
+        recipe.setPoint(this.point - 1);
+        MyrecipeApplication.applicationContext.getBean(recipe.external.RecipeService.class)
+            .update(recipe);
     }
     //...
 }
 ```
 
-- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하여, 주문 취소 시스템에 장애가 나면 배송도 취소되지 않는다는 것을 확인
-  - 배송(Delivery) 서비스를 잠시 내려놓음 (ctrl+c)  
-  ![image](https://user-images.githubusercontent.com/12531980/106551276-425f4780-6558-11eb-87d0-db00d11f70cb.png)
-  - 주문 취소(cancel) 요청 및 에러 난 화면 표시  
-  ![image](https://user-images.githubusercontent.com/12531980/106551103-da106600-6557-11eb-8609-4593a0b7d8c2.png)
-  - 배송(Delivery) 서비스 재기동 후 다시 주문 취소 요청  
-  ![image](https://user-images.githubusercontent.com/12531980/106551365-6d499b80-6558-11eb-84b7-b454b1df15c8.png)
+- 동기식 호출에서는 호출 시간에 따른 타임 커플링이 발생하여, 레시피 등록 서비스에 장애가 나면 추천 서비스도 동작하지 않는다는 것을 확인
+  - 추천 서비스를 잠시 내려놓음 (ctrl+c)  
+  ![4 shutdown_recipe](https://user-images.githubusercontent.com/73917331/106912003-feca3080-6745-11eb-9e77-d6716dcd0b49.PNG)
+  - 회원 레시피 요청 및 에러 난 화면 표시  
+  ![5 recipe_delete](https://user-images.githubusercontent.com/73917331/106912110-0e497980-6746-11eb-8635-3ec8515fd504.PNG)1
+  - 추천 서비스 재기동 후 다시 주문 취소 요청  
+  ![6 restart_delete](https://user-images.githubusercontent.com/73917331/106912399-52d51500-6746-11eb-91b4-8adac4bfd1a2.PNG)
+  ![7 minus_point](https://user-images.githubusercontent.com/73917331/106912835-c37c3180-6746-11eb-87fc-ba4805000e68.PNG)
 
 ## 비동기식 호출 (Pub/Sub 방식)
-- Recipe.java 내에서 아래와 같이 서비스 Pub 구현
+- Myrecipe.java 내에서 아래와 같이 서비스 Pub 구현
 ```java
 //...
-public class Recipe {
+public class Myrecipe {
 
     @Id
     @GeneratedValue(strategy=GenerationType.AUTO)
     private Long id;
-    private String recipeNm;
-    private String cookingMethod;
-    private String materialNm;
-    private Integer qty;
+    private String recipe;
+    private Long point;
 
     @PostPersist
     public void onPostPersist(){
-        MaterialOrdered materialOrdered = new MaterialOrdered();
-        BeanUtils.copyProperties(this, materialOrdered);
-        materialOrdered.publishAfterCommit();
+        Registered registered = new Registered();
+        BeanUtils.copyProperties(this, registered);
+        registered.publishAfterCommit();
     }
     //...
 }
 ```
 
-- Order.java 내 Policy Handler 에서 아래와 같이 Sub 구현
+- Recipe.java 내 Policy Handler 에서 아래와 같이 Sub 구현
 ```java
 //...
 @Service
@@ -340,38 +305,39 @@ public class PolicyHandler{
 
     //...
     @Autowired
-    OrderRepository orderRepository;
+    RecipeRepository recipeRepository;
 
-    //...
     @StreamListener(KafkaProcessor.INPUT)
-    public void wheneverMaterialOrdered_Order(@Payload MaterialOrdered materialOrdered){
+    public void wheneverRegistered_(@Payload Registered registered){
 
-        if(materialOrdered.isMe()){
-            System.out.println("##### listener  : " + materialOrdered.toJson());
-            Order order = new Order();
-            order.setMaterialNm(materialOrdered.getMaterialNm());
-            order.setQty(materialOrdered.getQty());
-            order.setStatus("Received Order");
-            orderRepository.save(order);
+        if(registered.isMe()){
+            Recipe recipe = new Recipe();
+
+            recipe.setRecipe(registered.getRecipe());
+            recipe.setPoint((long)1.0);
+            recipe.setMyrecipeId(registered.getId());
+
+            recipeRepository.save(recipe);
+            System.out.println("##### listener  : " + registered.toJson());
         }
     }
 }
 ```
 
-- 비동기식 호출은 다른 서비스가 비정상이여도 이상없이 동작가능하여, 주문 서비스에 장애가 나도 레시피 서비스는 정상 동작을 확인
-  - Recipe 서비스와 Order 서비스가 둘 다 동시에 돌아가고 있을때 Recipe 서비스 실행시 이상 없음  
-  ![image](https://user-images.githubusercontent.com/12531980/106556204-5f007d00-6562-11eb-8087-e0260a54d7bd.png)
-  - Order 서비스를 내림  
-  ![image](https://user-images.githubusercontent.com/12531980/106555946-e699bc00-6561-11eb-81de-15ea39698d35.png)  
-  - Recipe 서비스를 실행하여도 이상 없이 동작    
-  ![image](https://user-images.githubusercontent.com/12531980/106556261-7ccde200-6562-11eb-82d1-cd38eb3075fe.png)
+- 비동기식 호출은 다른 서비스가 비정상이여도 이상없이 동작가능하여, 레시피 등록 서비스에 장애가 나도 레시피 추천 서비스는 정상 동작을 확인
+  - Myrecipe 서비스와 Recipe 서비스가 둘 다 동시에 돌아가고 있을때 Myrecipe 서비스 실행시 이상 없음  
+  ![8 normal_add](https://user-images.githubusercontent.com/73917331/106913469-5cab4800-6747-11eb-8576-b7c309540599.PNG)
+  - Recipe 서비스를 내림  
+  ![9 recipe_down](https://user-images.githubusercontent.com/73917331/106913527-6df45480-6747-11eb-95f3-5202b97ffba4.PNG) 
+  - Myrecipe 서비스를 실행하여도 이상 없이 동작    
+  ![10 add_myrecipe](https://user-images.githubusercontent.com/73917331/106913600-81072480-6747-11eb-9a95-c0aecaf2cd9f.PNG)
 
 ## CQRS
 viewer를 별도로 구현하여 아래와 같이 view 가 출력된다.
-- MaterialOrdered 수행 후의 mypage  
-![image](https://user-images.githubusercontent.com/12531980/106606835-ecb18c00-65a5-11eb-85fa-9342cc8bef3d.png)
-- OrderCanceled 수행 후의 mypage  
-![image](https://user-images.githubusercontent.com/12531980/106606970-17034980-65a6-11eb-91e3-55c4e31a7e36.png)
+- Myrecipe 서비스 수행 후의 mypage  
+![11 myrecipe_mypage](https://user-images.githubusercontent.com/73917331/106913697-9ed48980-6747-11eb-8926-ea8a45f812f7.PNG)
+- 회원 레시시 삭제 후의 mypage  
+![12 delete_mypage](https://user-images.githubusercontent.com/73917331/106913800-b9a6fe00-6747-11eb-8190-7ef4e8e9f1fd.PNG)
 
 
 # 운영
@@ -631,21 +597,23 @@ kubectl apply -f - <<EOF
 EOF
 ```  
 
-- 설정된 Destinationrule을 확인한다.  
-  ![image](https://user-images.githubusercontent.com/16534043/106686837-5cf3f800-660e-11eb-9690-3c6ec926bd8e.png)
-
+- 설정된 Destinationrule을 확인한다.spec: host:gateway
+  ![39 istio_des](https://user-images.githubusercontent.com/73917331/106906902-fe7b6680-6740-11eb-99d6-ac43eaa6425f.png)
+  
 - siege를 활용하여 User가 1명인 상황에 대해서 요청을 보낸다. (설정값 c1)
   - siege는 같은 namespace에 생성하고, 해당 pod 안에 들어가서 siege 요청을 실행한다.
 ```
-kubectl exec -it siege-5459b87f86-tl584 -c siege -n istio-test-ns -- bin/bash
-siege -c1 -t30S -v --content-type "application/json" 'http://52.231.71.168:8080/recipes POST {"recipeNm": "apple_Juice"}'
+kubectl create -f siege.yaml -n istio-test-ns
+kubectl exec -it siege -c siege -n istio-test-ns -- bin/bash
+siege -c1 -t30S -v --content-type "application/json" 'http://52.231.76.80:8080/myrecipes {"recipe": "recipe99"}'
 ``` 
 
 - 실행결과를 확인하니, Availability가 높게 나옴을 알 수 있다.  
-  ![image](https://user-images.githubusercontent.com/16534043/106687083-d0960500-660e-11eb-9442-f2a4ef3f8da7.png)
+  ![40 istio_1](https://user-images.githubusercontent.com/73917331/106908305-87df6880-6742-11eb-877a-a29d74b9137c.png)
 
 - 이번에는 User가 2명인 상황에 대해서 요청을 보내고, 결과를 확인한다.  
 ```
+siege -c2 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"recipe": "recipe99"}'
 siege -c2 -t30S -v --content-type "application/json" 'http://52.231.71.168:8080/recipes POST {"recipeNm": "apple_Juice"}'
 ``` 
 
