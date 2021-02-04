@@ -335,7 +335,7 @@ public class PolicyHandler{
 ## CQRS
 viewer를 별도로 구현하여 아래와 같이 view 가 출력된다.
 - Myrecipe 서비스 수행 후의 mypage  
-![11 myrecipe_mypage](https://user-images.githubusercontent.com/73917331/106915302-34244d80-6749-11eb-810c-9ae84003bddb.PNG)
+![11 myrecipe_mypage](https://user-images.githubusercontent.com/73917331/106915894-ebb95f80-6749-11eb-85dd-fbcfc26f21ed.png)
 - 회원 레시시 삭제 후의 mypage  
 ![12 delete_mypage](https://user-images.githubusercontent.com/73917331/106913800-b9a6fe00-6747-11eb-8190-7ef4e8e9f1fd.PNG)
 
