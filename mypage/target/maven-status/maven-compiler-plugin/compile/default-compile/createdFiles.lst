@@ -1,0 +1,11 @@
+recipe\PolicyHandler.class
+recipe\Updated.class
+recipe\Mypage.class
+recipe\MypageRepository.class
+recipe\MypageApplication.class
+recipe\config\kafka\KafkaProcessor.class
+recipe\Recommended.class
+recipe\AbstractEvent.class
+recipe\AbstractEvent$1.class
+recipe\MypageViewHandler.class
+recipe\Registered.class

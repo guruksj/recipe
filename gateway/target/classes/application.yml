@@ -1,0 +1,66 @@
+server:
+  port: 8088
+
+---
+
+spring:
+  profiles: default
+  cloud:
+    gateway:
+      routes:
+        - id: myrecipe
+          uri: http://localhost:8081
+          predicates:
+            - Path=/myrecipes/** 
+        - id: recipe
+          uri: http://localhost:8082
+          predicates:
+            - Path=/recipes/** 
+        - id: mypage
+          uri: http://localhost:8083
+          predicates:
+            - Path= /mypages/**
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+
+---
+
+spring:
+  profiles: docker
+  cloud:
+    gateway:
+      routes:
+        - id: myrecipe
+          uri: http://myrecipe:8080
+          predicates:
+            - Path=/myrecipes/** 
+        - id: recipe
+          uri: http://recipe:8080
+          predicates:
+            - Path=/recipes/** 
+        - id: mypage
+          uri: http://mypage:8080
+          predicates:
+            - Path= /mypages/**
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOrigins:
+              - "*"
+            allowedMethods:
+              - "*"
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+
+server:
+  port: 8080
