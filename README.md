@@ -481,7 +481,7 @@ kubectl expose deploy myrecipe --type="ClusterIP" --port=8080
 
 ```
 
-- recipe 시스템에 replica를 자동으로 늘려줄 수 있도록 HPA를 설정한다. 설정은 CPU 사용량이 15%를 넘어서면 replica를 10개까지 늘려준다.
+- myrecipe 시스템에 replica를 자동으로 늘려줄 수 있도록 HPA를 설정한다. 설정은 CPU 사용량이 15%를 넘어서면 replica를 10개까지 늘려준다.
 ```
 kubectl autoscale deploy myrecipe --min=1 --max=10 --cpu-percent=10
 ```
