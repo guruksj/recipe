@@ -605,7 +605,7 @@ siege -c1 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"rec
 ``` 
 
 - 실행결과를 확인하니, Availability가 높게 나옴을 알 수 있다.  
-  ![40 istio_3](https://user-images.githubusercontent.com/73917331/106975904-c3a61c80-679a-11eb-9eba-f125b3c9fb58.png)
+  ![40 istio_1](https://user-images.githubusercontent.com/73917331/106976601-074d5600-679c-11eb-8dcc-4349e97c7ec1.png)
 
 - 이번에는 User가 2명인 상황에 대해서 요청을 보내고, 결과를 확인한다.  
 ```
@@ -613,7 +613,7 @@ siege -c3 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"rec
 ``` 
 
 - Availability가 User가 1명일 때 보다 낮게 나옴을 알 수있다. Circuit Breaker가 동작하여 대기중인 요청을 끊은 것을 알 수 있다.  
-  ![40 istio_1](https://user-images.githubusercontent.com/73917331/106975905-c43eb300-679a-11eb-84d5-ea33811dbdbd.png)
+  ![41 istio_3](https://user-images.githubusercontent.com/73917331/106976598-06b4bf80-679c-11eb-9f68-3ee93dbd385b.png)
 
 ## 모니터링, 앨럿팅
 - 모니터링: istio가 설치될 때, Add-on으로 설치된 Kiali, Jaeger로 데이터, 서비스에 대한 모니터링이 가능하다.
