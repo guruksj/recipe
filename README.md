@@ -22,10 +22,6 @@
 https://workflowy.com/s/assessment/qJn45fBdVZn4atl3
 
 # 분석/설계
-## AS-IS 조직 (Horizontally-Aligned)  
-![image](https://user-images.githubusercontent.com/16534043/106468971-f7a2e880-64e1-11eb-9e3e-faf334166094.png)
-## TO-BE 조직 (Vertically-Aligned)  
-![image](https://user-images.githubusercontent.com/16534043/106469623-de4e6c00-64e2-11eb-9c5d-bd3d43fa6340.png)
 ## EventStorming 결과
 ### 완성된 1차 모형  
 ![01 model](https://user-images.githubusercontent.com/73917331/106879692-d2e78480-671e-11eb-931d-a3eff7013995.PNG)
@@ -588,7 +584,7 @@ kubectl apply -f - <<EOF
     name: dr-httpbin
     namespace: istio-test-ns
   spec:
-    host: gateway
+    host: mypage
     trafficPolicy:
       connectionPool:
         http:
@@ -605,61 +601,57 @@ EOF
 ```
 kubectl create -f siege.yaml -n istio-test-ns
 kubectl exec -it siege -c siege -n istio-test-ns -- bin/bash
-siege -c1 -t30S -v --content-type "application/json" 'http://52.231.76.80:8080/myrecipes {"recipe": "recipe99"}'
+siege -c1 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"recipe": "recipe800"}'
 ``` 
 
 - 실행결과를 확인하니, Availability가 높게 나옴을 알 수 있다.  
-  ![40 istio_1](https://user-images.githubusercontent.com/73917331/106908305-87df6880-6742-11eb-877a-a29d74b9137c.png)
+  ![40 istio_3](https://user-images.githubusercontent.com/73917331/106975904-c3a61c80-679a-11eb-9eba-f125b3c9fb58.png)
 
 - 이번에는 User가 2명인 상황에 대해서 요청을 보내고, 결과를 확인한다.  
 ```
-siege -c2 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"recipe": "recipe99"}'
-siege -c2 -t30S -v --content-type "application/json" 'http://52.231.71.168:8080/recipes POST {"recipeNm": "apple_Juice"}'
+siege -c3 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"recipe": "recipe800"}'
 ``` 
 
 - Availability가 User가 1명일 때 보다 낮게 나옴을 알 수있다. Circuit Breaker가 동작하여 대기중인 요청을 끊은 것을 알 수 있다.  
-  ![image](https://user-images.githubusercontent.com/16534043/106687175-fcb18600-660e-11eb-8b46-c33a88be8694.png)
+  ![40 istio_1](https://user-images.githubusercontent.com/73917331/106975905-c43eb300-679a-11eb-84d5-ea33811dbdbd.png)
 
 ## 모니터링, 앨럿팅
-- 모니터링: istio가 설치될 때, Add-on으로 설치된 Kiali, Jaeger, Grafana로 데이터, 서비스에 대한 모니터링이 가능하다.
+- 모니터링: istio가 설치될 때, Add-on으로 설치된 Kiali, Jaeger로 데이터, 서비스에 대한 모니터링이 가능하다.
 
   - Kiali (istio-External-IP:20001)
   어플리케이션의 proxy 통신, 서비스매쉬를 한눈에 쉽게 확인할 수 있는 모니터링 툴  
-   ![image](https://user-images.githubusercontent.com/16534043/106687288-31254200-660f-11eb-89d2-61bf7eafa0d9.png)
-   ![image](https://user-images.githubusercontent.com/16534043/106687515-97aa6000-660f-11eb-8cad-2247d1d0c747.png)
+   ![51 kiali1](https://user-images.githubusercontent.com/73917331/106969884-1aa5f480-678f-11eb-9765-f811176ee555.png)
+   ![52 kiali2](https://user-images.githubusercontent.com/73917331/106969891-1bd72180-678f-11eb-81f1-f8a4dfe43692.png)
    
   - Jaeger (istio-External-IP:80)
     트랜잭션을 추적하는 오픈소스로, 이벤트 전체를 파악하는 Tracing 툴  
-   ![image](https://user-images.githubusercontent.com/16534043/106687562-b27cd480-660f-11eb-8bb0-0bab4585ece7.png)
-   
-  - Grafana (istio-External-IP:3000)
-  시계열 데이터에 대한 대시보드이며, Prometheus를 통해 수집된 istio 관련 데이터를 보여줌  
-  ![image](https://user-images.githubusercontent.com/16534043/106687835-451d7380-6610-11eb-9d54-257c3eb4b866.png)
+   ![53 jaeger](https://user-images.githubusercontent.com/73917331/106969893-1d084e80-678f-11eb-8426-146155ac78a9.png)
 
-## ConfigMap 적용
+   
+  ## ConfigMap 적용
 - ConfigMap을 활용하여 변수를 서비스에 이식한다.
 - ConfigMap 생성하기
 ```
-kubectl create configmap deliveryword --from-literal=word=Preparing
+kubectl create configmap deliveryword --from-literal=point=5
 ```  
 
 - Configmap 생성 확인  
-  ![image](https://user-images.githubusercontent.com/16534043/106593940-c505f800-6594-11eb-9284-8e896b531f04.png)
+  ![61 config create](https://user-images.githubusercontent.com/73917331/106970362-09111c80-6790-11eb-96ba-a94310545a38.png)
 
 - 소스 수정에 따른 Docker 이미지 변경이 필요하기에, 기존 Delivery 서비스 삭제
 ```
-kubectl delete pod,deploy,service delivery
+kubectl delete pod,deploy,service recipe
 ```
 
-- Delivery 서비스의 PolicyHandler.java (delivery\src\main\java\searchrecipe) 수정
+- recipe 서비스의 PolicyHandler.java (recipe\src\main\java\recipe) 수정
 ```
-#30번째 줄을 아래와 같이 수정
-#기존에는 Delivery Started라는 고정된 값이 출력되었으나, Configmap에서 가져온 환경변수를 입력받도록 수정
-// delivery.setStatus("Delivery Started");
-delivery.setStatus(" Delivery Status is " + System.getenv("STATUS"));
+#28번째 줄을 아래와 같이 수정
+#기존에는 1을 부여하였으나, Configmap에서 가져온 환경변수를 입력받도록 수정
+// recipe.setPoint((long)1.0);
+recipe.setPoint(System.getenv("POINT"));
 ```
 
-- Delivery 서비스의 Deployment.yml 파일에 아래 항목 추가하여 deployment_configmap.yml 생성 (아래 코드와 그림은 동일 내용)
+- Recipe 서비스의 Deployment.yml 파일에 아래 항목 추가하여 deployment_configmap.yml 생성 (아래 코드와 그림은 동일 내용)
 ```
           env:
             - name: STATUS
@@ -669,7 +661,7 @@ delivery.setStatus(" Delivery Status is " + System.getenv("STATUS"));
                   key: word
 
 ```  
-  ![image](https://user-images.githubusercontent.com/16534043/106592668-275df900-6593-11eb-9007-fb31717f34e8.png)  
+  ![62 cm yml](https://user-images.githubusercontent.com/73917331/106971665-b4bb6c00-6792-11eb-8f17-b45997160a89.png)
 
 - Docker Image 다시 빌드하고, Repository에 배포하기
 
@@ -681,14 +673,12 @@ kubectl create -f deployment_config.yml
 - Kubernetes에서 POD 생성 후 expose
 
 - 해당 POD에 접속하여 Configmap 항목이 ENV에 있는지 확인  
-  ![image](https://user-images.githubusercontent.com/16534043/106595482-faabe080-6596-11eb-9a73-f66fb5d61382.png)
+  ![63 cm env](https://user-images.githubusercontent.com/73917331/106973604-88095380-6796-11eb-913a-db526a982504.png)
 
 - http로 전송 후, Status에 Configmap의 Key값이 찍히는지 확인  
 ```
-http post http://20.194.26.128:8080/recipes recipeNm=apple_Juice cookingMethod=Using_Mixer materialNm=apple qty=3
+http http://52.231.78.198:8080/myrecipes recipe=recipe600
+http http://52.231.78.198:8080/recipes
 ```  
-  ![image](https://user-images.githubusercontent.com/16534043/106603485-ae19d280-65a1-11eb-9fe5-773e1ad46790.png)
+  ![64 cm recipe](https://user-images.githubusercontent.com/73917331/106975130-48903680-6799-11eb-85d6-f946ad5da2d4.png)
   
-- 참고: 기존에 configmap 사용 전에는 아래와 같이 status에 고정값이 출력됨  
-  ![image](https://user-images.githubusercontent.com/16534043/106688731-fe307d80-6611-11eb-936f-61739006af67.png)
-
