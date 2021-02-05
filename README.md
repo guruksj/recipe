@@ -607,7 +607,7 @@ siege -c1 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"rec
 - 실행결과를 확인하니, Availability가 높게 나옴을 알 수 있다.  
   ![40 istio_1](https://user-images.githubusercontent.com/73917331/106976601-074d5600-679c-11eb-8dcc-4349e97c7ec1.png)
 
-- 이번에는 User가 2명인 상황에 대해서 요청을 보내고, 결과를 확인한다.  
+- 이번에는 User가 3명인 상황에 대해서 요청을 보내고, 결과를 확인한다.  
 ```
 siege -c3 -t30S -v --content-type "application/json" 'http://myrecipe:8080 {"recipe": "recipe800"}'
 ``` 
